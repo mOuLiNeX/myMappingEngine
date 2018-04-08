@@ -1,13 +1,37 @@
 package fr.manu.mapping
 
-typealias PropConverter = (Data) -> Map<String, Any>
+import java.util.function.Predicate
 
-val noOpPropConverter: PropConverter = { it.values.mapValues { it.value!! } }
+typealias DataConverter = (Data) -> Map<String, Any?>
+
+val noOpPropConverter: DataConverter = { it.values }
 
 private const val ANYTHING_OR_NULL = "*"
 private const val ANYTHING_NOT_NULL = "+"
 
-data class MappingLine(private val dimensionsTransform: Pair<Map<String, String?>, Map<String, String>>, val valuesTransform: PropConverter) {
+data class MappingRule(val from: Predicate<Data>, private val toDimensions: DataConverter, private val toValues: DataConverter) {
+
+    // Cas le plus simple de correspondance 1 pour 1
+    constructor(fromTo: Pair<Map<String, String?>, Map<String, String>>, toValues: DataConverter) :
+            this(
+                    from = Predicate { d -> d.match(fromTo.first) },
+                    toDimensions = { fromTo.second },
+                    toValues = toValues)
+
+    // Cas permettant de ne pas se limiter qu'à des valeurs fixes en sortie (on peut reprendre des valeurs de la donnée source)
+    constructor(from: Map<String, String?>, to: Map<String, (Data) -> String>, toValues: DataConverter) :
+            this(
+                    from = Predicate { d -> d.match(from) },
+                    toDimensions = { d -> to.mapValues { it.value(d) } },
+                    toValues = toValues)
+
+    fun transform(fact: Data): Data = Data(toDimensions(fact), toValues(fact))
+
+    fun match(data: Data) = from.test(data)
+}
+
+
+data class MappingRule2(private val dimensionsTransform: Pair<Map<String, String?>, Map<String, String>>, val valuesTransform: DataConverter) {
 
     val dimensionsSource get() = dimensionsTransform.first
     val dimensionsCible get() = dimensionsTransform.second

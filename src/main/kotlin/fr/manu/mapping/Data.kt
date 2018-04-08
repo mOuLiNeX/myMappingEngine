@@ -20,7 +20,6 @@ data class Data(val dimensions: Map<String, Any?> = emptyMap(), val values: Map<
         return this.aggregate(other)
     }
 
-
     private fun aggregate(other: Data): Data {
         val properties = mutableMapOf<String, Any?>()
 
